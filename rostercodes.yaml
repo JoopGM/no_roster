@@ -1,0 +1,183 @@
+    C: Line Check Captain
+    H: Highrank (Cabin crew)
+    I: Line Instructor
+    K: Line Check candidate
+    L: Lowrank
+    N: New Onboard
+    P: Positioning own airline
+    R: Commander in R/H seat or Lowrank (CA)
+    S: Service Cabin Crew
+    T: Trainee
+    U: Supernumerary (inclusive BLH)
+    V: Supernumerary (exclusive BLH)
+    A73: 738 Additional Simulator Training
+    AID: First Aid course
+    ALS: ALC Standby (for non ALC crew)
+    AP1: Airport Standby 0600 - 1100
+    AP2: Airport Standby 1400 - 1900
+    AP3: Airport Standby 0530 – 1030
+    AP4: Airport Standby 1200 - 1800
+    AP5: Airport Standby 1000 - 1500
+    AP6: Airport Standby 0500 - 1000
+    AP7: Airport Standby 1300 - 1900
+    APM: Minimum Airport Standby
+    APS: Airport Standby
+    ARS: ARN Standby (for non ARN crew)
+    BDA: Bought Day Administrative crew
+    BDB: Bought Day Off British Operation
+    BDD: Bought Day Off Danish Operation
+    BDE: Bought Day Off Spanish Operation
+    BDF: Bought Day Off Finish Operation
+    BDH: Bought Half Day Off (OPS use) (halv fridagsbetaling)
+    BDN: Bought Day Off Norwegian Operation
+    BDS: Bought Day Off Swedish Operation
+    BDT: Bought Day Off Training and/or simulator
+    BGS: BGO Standby for non BGO crew
+    BUS: Bus transportation
+    CAC: Upgrade-to-Captain-Course
+    CBT: Computer Based Training (specified by note)
+    CCC: Cabin Chief course
+    CON: Conversion course A/C type
+    CPD: Chief Pilot Duty
+    CPM: Chief Pilot Meeting
+    CPS: CPH Standby for non CPH crew
+    CRM: CRM course
+    DAV: Day off after vacation – CA ARN only
+    D6X: Flexible Earned Day Off
+    DDO: Day due FD other (not accumulated)
+    DDU: Day due
+    DG: Dangerous Goods
+    DO: Day Off
+    DO2: Day Off working 50% (Season variable 50%&100%)
+    DO3: Variable Day Off
+    DO4: Day Off for Training on Day Off
+    DO5: Other Day Off
+    DO6: Earned day off
+    DO7: Day off outbase
+    DO9: Comp day for new key in 2008
+    D10: Day Off FD – compensation for DDO (not accumulated)
+    DOP: NPF Protocol Day Off, point 4. (ref. Protocol of 17/7-2008)
+    DOX: Day Off flexible
+    E73: Emergency Evacuation Simulator
+    F73: Emergency Fire Simulator
+    FAL: Fahers leave
+    FDB: Full Day paid (not valid for hired crew members)
+    F-O: Not pre booked Ground Transportation FBU-OSL
+    FPE: SE parental leave – (Föräldrapenning)
+    F-R: Ground transportation FBU-RYG
+    GI: Ground Instructor
+    GOS: GOT Standby
+    HDB: Half Day Paid (not valid for hired crew members)
+    HES: HEL Standby (for non HEL crew)
+    HMS: HMS
+    HTL: Hotel
+    ILC: Childcare
+    ILD: Illness on Day off
+    ILF: Flexible illness
+    ILL: Illness without medical approval
+    ILM: Illness with medical approval
+    IM: Instructor Meeting
+    IMI: Missing info about further medical approvement
+    INC: Participant Line Instructor or Sim instructor Course
+    IOV: Illness on Vacation Day
+    IVA: Illness on VAR Day
+    JEP: Jeppesen chart CBT course
+    LEA: Leave (unpaid)
+    LEE: Legal exception end
+    LES: Legal exception start
+    LGS: LGW Standby (for non LGW crew)
+    LIN: bAnnual Line Check
+    LND: Aircraft Training (Landings)
+    LPS: LPA Standby (for non LPA crew)
+    MAT: Maternity Leave
+    MBR: Meal Break
+    MCA: Meal (Company Arranged)
+    MEA: Meal (Employee Arranged)
+    MIL: Military Service
+    MIS: Minimum Standby (OCC info only – normal S/B for crew)
+    MOD: Module for apprentice when not on flight duty
+    NEP: New Pilot Course
+    NEW: New CM course
+    NFF: Not Fit for Flight
+    NGS: OSL 738 New Pilot Simulator (Diff course)
+    NOR: Temp (no transport needed)
+    NK: Cabin Union
+    NKK: Contact Meeting Cabin Union
+    NKS: Meeting Pairing Committee
+    NOS: No Show
+    NPF: Pilot Union Internal Meeting
+    NPH: NPF home office
+    NPN: NPF meeting with Management
+    NPP: NPF day paid by Parat
+    NSI: 738 Simulator instructor
+    OCN: Operator Conversion Course NAN
+    OD: Open Day
+    O-F: Not pre booked Ground Transportation OSL-FBU
+    OFD: Office Day (incl. per diem)
+    OM: Other Meeting (not Operative)
+    OPC: OSL 733 OPC
+    OPN: OSL 738 OPC
+    O-R: Ground transportation OSL-RYG
+    OSS: OSL Standby for non OSL crew
+    O-T: Oslo Torp Ground Transport
+    OT1: Operational and Technical recurrent training 1
+    OT2: Operational and Technical recurrent training 2
+    OT3: Operational and Technical recurrent training 3
+    OTC: Course (specified by note)
+    OXD: Office day (excl. per diem)
+    PAX: Positioning other airlines/train/car
+    PC3: 733 PC = Type Rating
+    PC8: 738 PC = Type Rating
+    PUP: Pick up
+    PVT: Private overnight stay (incl. night compensation)
+    RD: Rest on Duty Day
+    REL: Release check (variant)
+    RMB:  Reduced Meal Break
+    R-F: Ground transportation RYG-FBU
+    R-O: Ground transportation RYG-OSL
+    RTR: Refresher Training
+    S10: SBY 12.00 - 21.00
+    S11: SBY 04.00 - 16.00
+    S13: SBY 14.00 - 22.00
+    S14: SBY 0330 - 1200
+    S17: SBY 0400 - 1400
+    S38: SBY 0500 - 1500
+    S39: SBY 1300 - 2100
+    SB9: SBY 09.00 - 18.00
+    SB40: SBY 12.30- 21.00
+    SBD: (Planned Birth Delivery) Standby
+    SBX: SBY Flexible
+    SCO: Standby Call Out
+    SDI: Split due irregularity
+    SDU: Super Day Due
+    SDO: Super Day Off
+    SI3: OPC-PC 733 Simulator Instructor
+    SI8: OPC-PC 738 Simulator Instructor
+    SIC: OSL Simulator / Evaluation Captain candidate
+    SII: OSL 733 Simulator instructor
+    SIN: 733 New pilot simulator
+    SKT: OSL Skilltest
+    SLT: Stand By for linetraining
+    SOC: Social Leave (paid)
+    SNK: Cabin Union ARN
+    SSB: Short Standby
+    SSE: Simulator/Evaluation SCCM Candidate
+    ST3: Skilltest 733 Simulator Instructor
+    ST8: Skilltest 738 Simulator Instructor
+    SVS: SVG Standby for non SVG crew
+    TDO: Training on Day Off
+    TFS: TFS Standby for non TFS crew
+    T-O: Torp Oslo Ground Transport
+    TOG: Train transportation
+    TPD: Test Pilot Duty
+    TRS: TRD Standby for non TRD crew
+    TSB: TRF Standby
+    TXI: Taxi
+    TXT: Taxi TFS/TFN
+    UOD: Unforeseen Office Day
+    VAC: Vacation
+    VAF: Vacation flexible
+    VAR: Variable Duty Day
+    WDO: Weekend Day Off
+    WOP: Winter OPS SIM for HIRED PILOTS
+

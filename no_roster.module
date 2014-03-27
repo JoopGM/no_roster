@@ -1,0 +1,460 @@
+<?php
+
+define("SITE_MAIL", "info@nlhcrew.com");
+define("SITE_DISPLAY_NAME", "NLHCrew.com");
+define("VIS_DEFAULT", 'default');
+
+/**
+ * implements hook_permission
+ */
+function no_roster_permission() {
+  return array(
+    'use_norwegian_roster' => array(
+      'title' => t('Use Norwegian roster'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu
+ */
+function no_roster_menu() {
+  $items['no_test'] = array(
+  'page callback' => 'no_test',
+  'access callback' => 'user_access',
+  'access arguments' => array('use_norwegian_roster'),
+  //'access arguments' => array(TRUE),
+  'type' => MENU_CALLBACK,
+  );
+  $items['no_roster/load_roster'] = array(
+    'page callback' => 'load_roster',
+    'access callback' => 'user_access',
+    'access arguments' => array('use_norwegian_roster'),
+    'type' => MENU_CALLBACK,
+    );
+  return $items;
+}
+
+/**
+ * ASP.NET web site scraping script;
+ * Developed by MishaInTheCloud.com
+ * Copyright 2009 MishaInTheCloud.com. All rights reserved.
+ */
+function load_roster() {
+  $roster = array();
+ // header("Content-Type: text/xml");
+  // urls to call
+  $urlLogin = "https://cwp.norwegian.no/CWP_WA/CWPLogin.aspx";
+  $urlSecuredPage = "https://cwp.norwegian.no/CWP_WA/CWP_RosterTW.aspx?EMPNO=17001";
+
+  // POST names and values to support login
+  $nameUsername = 'ctrlUserName';       // the name of the username textbox on the login form
+  $namePassword = 'ctrlPassword';       // the name of the password textbox on the login form
+  $nameLoginBtn = 'btnLogin';          // the name of the login button (submit) on the login form
+  $valUsername = 'SIJO';        // the value to submit for the username
+  $valPassword = '1234';        // the value to submit for the password
+  $valLoginBtn = 'Login';             // the text value of the login button itself
+  // the path to a file we can read/write; this will
+  // store cookies we need for accessing secured pages
+  $cookies = 'cookies.txt';
+
+  // regular expressions to parse out the special ASP.NET
+  // values for __VIEWSTATE and __EVENTVALIDATION
+  $regexViewstate = '/__VIEWSTATE\" value=\"(.*)\"/i';
+  $regexEventVal = '/__EVENTVALIDATION\" value=\"(.*)\"/i';
+
+  // initialize a curl handle; we'll use this handle throughout the script
+  $ch = curl_init();
+
+
+  /* * **********************************************
+   * first, issue a GET call to the ASP.NET login
+   *   page.  This is necessary to retrieve the
+   *   __VIEWSTATE and __EVENTVALIDATION values
+   *   that the server issues
+   * ********************************************** */
+  curl_setopt($ch, CURLOPT_URL, $urlLogin);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+  curl_setopt($ch, CURLOPT_FOLLOWLOCATION, TRUE);
+  curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+  $data = curl_exec($ch);
+
+  // from the returned html, parse out the __VIEWSTATE and __EVENTVALIDATION values
+  $viewstate = _regexExtract($data, $regexViewstate, $regs, 1);
+  $eventval = _regexExtract($data, $regexEventVal, $regs, 1);
+
+
+  /* * **********************************************
+   * now issue a second call to the Login page;
+   *   this time, it will be a POST; we'll send back
+   *   as post data the __VIEWSTATE and __EVENTVALIDATION
+   *   values the server previously sent us, as well as the
+   *   username/password.  We'll also set up a cookie
+   *   jar to retrieve the authentication cookie that
+   *   the server will generate and send us upon login.
+   * ********************************************** */
+  $postData = '__VIEWSTATE=' . rawurlencode($viewstate)
+  . '&__EVENTVALIDATION=' . rawurlencode($eventval)
+  . '&' . $nameUsername . '=' . $valUsername
+  . '&' . $namePassword . '=' . $valPassword
+  . '&' . $nameLoginBtn . '=' . $valLoginBtn;
+
+  curl_setOpt($ch, CURLOPT_POST, TRUE);
+  curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+  curl_setopt($ch, CURLOPT_URL, $urlLogin);
+  curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
+
+  $data = curl_exec($ch);
+
+
+  /* * **********************************************
+   * with the authentication cookie in the jar,
+   * we'll now issue a GET to the secured page;
+   * we set curl's COOKIEFILE option to the same
+   * file we used for the jar before to ensure the
+   * authentication cookie is sent back to the
+   * server
+   * ********************************************** */
+  curl_setOpt($ch, CURLOPT_POST, FALSE);
+  curl_setopt($ch, CURLOPT_URL, $urlSecuredPage);
+  curl_setopt($ch, CURLOPT_COOKIEFILE, $cookies);
+
+  $data = curl_exec($ch);
+
+  // at this point the secured page may be parsed for values, or additional POSTS made to submit parameters
+  // and retrieve data.  For this sample, we'll just echo the results.
+  $dom = new DOMDocument;
+ // echo $data;
+  if ($dom->loadHTML($data)) {
+    $xpath = new DOMXPath($dom);
+    //$all_rows = $dom-> saveHTML(
+    $node_list =  $xpath-> query("//tr[@class='RosterOddRow' or @class='RosterEvenRow']");
+    if (!$node_list) {
+      echo 'node list empty or FALSE';
+    }
+    else {
+      if (!is_null($node_list)) {
+        foreach ($node_list as $element) {
+          $test_array = array();
+          $nodes = $element-> childNodes;
+          $kind = substr($nodes-> item(1)->nodeValue, 0, 3);
+          if ($kind == "Hot" || $kind == "Cre" || $kind == "Day") {
+           // echo 'kind = ' . $kind . '<br />';
+          }
+          else {
+           // $test_array['first'] = $nodes-> item(0)->nodeValue;
+            $test_array['Date'] = $nodes-> item(1)->nodeValue;
+            $test_array['Checkin'] = $nodes-> item(2)->nodeValue;
+            $test_array['Activity'] = $nodes-> item(3)->nodeValue;
+            $test_array['Start'] = $nodes-> item(4)->nodeValue;
+            $test_array['Dep'] = $nodes-> item(5)->nodeValue;
+            $test_array['Arr'] = $nodes-> item(6)->nodeValue;
+            $test_array['End'] = $nodes-> item(7)->nodeValue;
+            $test_array['Checkout'] = $nodes-> item(8)->nodeValue;
+            $test_array['AcType'] = $nodes-> item(9)->nodeValue;
+            $test_array['AcVersion'] = $nodes-> item(10)->nodeValue;
+            $test_array['DD'] = $nodes-> item(11)->nodeValue;
+            $test_array['Cat'] = $nodes-> item(12)->nodeValue;
+            $test_array['LE'] = $nodes-> item(13)->nodeValue;
+           // echo '<br /><br />';
+            //print_r($test_array);
+            $roster[] = $test_array;
+          }
+
+        }
+      }
+    }
+  }
+  curl_close($ch);
+  // DEBUG  echo '<pre>';var_dump($roster); echo '</pre>';exit();
+  $complete_roster = complete_roster($roster);
+  drupal_set_message(debug($complete_roster));
+  drupal_goto('<front>');
+}
+
+
+function post_to_calendar($roster) {
+/*
+  // Data to post:
+  $post_data = array(
+    "end" => array("dateTime" => "2014-03-20T10:00:00.000-07:00",),
+    "start" => array("dateTime" => "2014-03-20T10:00:00.000-06:00",),
+    "summary" => "Test event",
+    "creator" => array(
+    "displayName" => "NLHCREW.COM",
+    "email" => "info@nlhcrew.com",
+    ),
+    "description" => "Dit is maar een test",
+  );
+
+  $url = "https://www.googleapis.com/calendar/v3/calendars/joopsintjago%40gmail.com/events?key=" . $api_key;
+
+  // Setup cURL
+  $ch = curl_init($url);
+  curl_setopt_array($ch, array(
+    CURLOPT_POST => TRUE,
+    CURLOPT_RETURNTRANSFER => TRUE,
+    CURLOPT_HTTPHEADER => array(
+      'Authorization: ' . $oAuth_token,
+      'Content-Type: application/json',
+      'X-JavaScript-User-Agent: Google APIs Explorer',
+    ),
+    CURLOPT_POSTFIELDS => drupal_json_encode($post_data),
+  ));
+
+  // Send the request
+  $response = curl_exec($ch);
+
+  // Check for errors
+  if($response === FALSE){
+    die(curl_error($ch));
+  }
+
+  // Decode the response
+  $responseData = drupal_json_decode($response, TRUE);
+
+  // Print the date from the response
+  debug($responseData, 'response data');*/
+
+  error_reporting(E_ALL);
+  require_once 'google/src/Google_Client.php';
+  require_once 'google/src/contrib/Google_CalendarService.php';
+  session_start();
+
+  if ((isset($_SESSION)) && (!empty($_SESSION))) {
+    echo "There are cookies<br>";
+    echo "<pre>";
+    print_r($_SESSION);
+    echo "</pre>";
+  }
+
+  $client = new Google_Client(array('use_objects' => true));
+  $client->setApplicationName("NLHCREW.com Roster");
+  $client->setClientId('786455466975-dsplfoagg6usnngs876qshdtf7j6b67f.apps.googleusercontent.com');
+  $client->setClientSecret('APNdZIR2Y7nMqy2SM93viZFu');
+  $client->setRedirectUri('http://dev7.yagoserver.com/no_roster/get_roster_page');
+  //$client->setDeveloperKey('AIzaSyB4amN0V6XsmNgsg2-M7NBZf9Zp5b1LqJI');
+
+  $cal = new Google_CalendarService($client);
+
+  if (isset($_GET['logout'])) {
+    echo "<br><br><font size=+2>Logging out</font>";
+    unset($_SESSION['token']);
+  }
+
+  if (isset($_GET['code'])) {
+    echo "<br>I got a code from Google = ".$_GET['code']; // You won't see this if redirected later
+    $client->authenticate($_GET['code']);
+    $_SESSION['token'] = $client->getAccessToken();
+    header('Location: http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF']);
+    echo "<br>I got the token = ".$_SESSION['token']; // <-- not needed to get here unless location uncommented
+  }
+
+  if (isset($_SESSION['token'])) {
+    echo "<br>Getting access";
+    $client->setAccessToken($_SESSION['token']);
+  }
+
+  if ($client->getAccessToken()){
+
+    echo "<hr><font size=+1>I have access to your calendar</font>";
+
+    foreach ($roster as $day) {
+      $event = new Google_Event();
+      $event-> setSummary($day['Activity']); //"summary": string,
+      $event-> setDescription($day['description']); //"description": string,
+      $creator = new Google_EventCreator();
+      $creator->setDisplayName(SITE_DISPLAY_NAME);
+      $creator-> setEmail(SITE_MAIL);
+      $event-> setCreator($creator);
+      $start = new Google_EventDateTime();
+      $start-> setDateTime($day['Checkin']);
+      $event-> setStart($start);
+      $end = new Google_EventDateTime();
+      $end-> setDateTime($day['Checkout']);
+      $event-> setEnd($end);
+      $event-> setVisibility(VIS_DEFAULT);
+
+     /* $event = new Google_Event();
+      $event->setSummary('Halloween');
+      $event->setLocation('The Neighbourhood');
+      $start = new Google_EventDateTime();
+      $start->setDateTime('2014-03-31T10:00:00.000-05:00');
+      $event->setStart($start);
+      $end = new Google_EventDateTime();
+      $end->setDateTime('2014-03-31T10:25:00.000-06:00');
+      $event->setEnd($end);*/
+
+      $createdEvent = $cal->events->insert('joopsintjago@gmail.com', $event);
+      echo "<br><font size=+1>Event created</font>";
+    }
+    echo "<hr><br><font size=+1>Already connected</font> (No need to login)";
+  }
+  else {
+    $authUrl = $client->createAuthUrl();
+    print "<hr><br><font size=+2><a href='". $authUrl . "'>Connect Me!</a></font>";
+  }
+
+  $url = 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'];
+  echo "<br><br><font size=+2><a href='" . "$url" . "?logout>Logout</a></font>";
+
+}
+
+/*
+ * @$roster array. roster as scraped from the webportal. function will further enhance the
+ * array and return a better roster.
+ */
+function complete_roster($roster){
+  require_once('spyc/Spyc.php');
+  $rostercodes = Spyc::YAMLLoad('/var/www/vhosts/yagoserver.com/httpdocs/dev7/drupal/sites/all/modules/no_roster/rostercodes.yaml');
+ /* DEBUG  echo '<pre><a href="rostercodes.yaml">rostercodes.yaml</a> loaded into PHP:<br/>';
+  print_r($rostercodes);
+  echo '</pre>';*/
+
+  $today = '';
+  foreach ($roster as $key => $day) {
+    //echo 'key: ' . $key . '  |  day: ' . $day . '<br>';
+    //if Date field is empty, set date to today (last known date)
+    // FIXME: results in error if first date in unknown
+    $roster[$key]['Date'] = rtrim((strlen($day['Date']) < 6 ? $today : $day['Date']));
+    // DEBUG:    echo 'date rtrimmed and completed ' . $roster[$key]['Date'] . ' | ' . var_dump($roster[$key]['Date']) . '<br>';
+    $today = $roster[$key]['Date'];  // $today is temp var
+
+    // Change $roster[$key]['Date'] to DateTime RFC3339 format
+    $dt = DateTime::createFromFormat('dmy', $today);
+    //DEBUG echo $dt->format(DATE_ATOM) . '<br>';
+    if (!$dt) {
+      echo ' false dt ' . $today; exit();
+    }
+    $roster[$key]['Date'] = $dt-> format('d-m-Y');
+
+    // If event ends on next day(s)
+    $end_array = complete_end_time($day['End']);
+    $roster[$key]['event_end'] = $end_array['time'];
+    $roster[$key]['extra_days'] = $end_array['days'];
+
+    // if Checkin /Checkout time not set, set it to start and End
+    $roster[$key]['Checkin'] = (empty($day['Checkin']) ? $day['Start'] : $day['Checkin']);
+    $roster[$key]['Checkout'] = (empty($day['Checkout']) ? $roster[$key]['event_end'] : $day['Checkout']);
+
+
+
+    // Complete Checkin and Checkout times as RFC3339 data
+    $roster[$key]['Checkin'] = complete_event_datetime($roster[$key]['Date'], $roster[$key]['Checkin']);
+    $roster[$key]['Checkout'] = complete_event_datetime($roster[$key]['Date'], $roster[$key]['Checkout'], $roster[$key]['extra_days']);
+
+    foreach ($day as $label => $value) {
+      // DEBUG: echo 'label: ' . $label . ' value : ' . $value . '<br>';
+      // Fill in roster codes
+      //  DEBUG: echo 'label : ' . $label .  ' | value: ' . $value . '<br> ';
+      if (isset($rostercodes[$value])) {
+        $roster[$key][$label] = $rostercodes[$value];
+      }
+
+    }
+    // Compose the description:
+    $roster[$key]['description'] =
+    $roster[$key]['Activity'] . ' | ' . $roster[$key]['Dep'] . '-'  . $roster[$key]['Start'] . ' - ' . $roster[$key]['Dep'] . '-' . $roster[$key]['End'] . '<br>' .
+    'Cat: ' . $roster[$key]['Cat'] . ' | DD: ' . $roster[$key]['DD'] . ' | LE: ' . $roster[$key]['LE'];
+
+  }
+  //DEBUG:
+  echo '<pre> <p>end result</p>'; print_r($roster); echo '</pre>'; exit();
+  return $roster;
+}
+
+/* * **********************************************
+ * utility function: regexExtract
+ *    use the given regular expression to extract
+ *    a value from the given text;  $regs will
+ *    be set to an array of all group values
+ *    (assuming a match) and the nthValue item
+ *    from the array is returned as a string
+ * ********************************************** */
+
+function _regexExtract($text, $regex, $regs, $nthValue) {
+  if (preg_match($regex, $text, $regs)) {
+    $result = $regs[$nthValue];
+  } else {
+    $result = "";
+  }
+  return $result;
+}
+
+function xml_to_array($root) {
+  $result = array();
+
+  if ($root->hasAttributes()) {
+    $attrs = $root->attributes;
+    foreach ($attrs as $attr) {
+      $result['@attributes'][$attr->name] = $attr->value;
+    }
+  }
+
+  if ($root->hasChildNodes()) {
+    $children = $root->childNodes;
+    if ($children->length == 1) {
+      $child = $children->item(0);
+      if ($child->nodeType == XML_TEXT_NODE) {
+        $result['_value'] = $child->nodeValue;
+        return count($result) == 1
+        ? $result['_value']
+        : $result;
+      }
+    }
+    $groups = array();
+    foreach ($children as $child) {
+      if (!isset($result[$child->nodeName])) {
+        $result[$child->nodeName] = xml_to_array($child);
+      } else {
+        if (!isset($groups[$child->nodeName])) {
+          $result[$child->nodeName] = array($result[$child->nodeName]);
+          $groups[$child->nodeName] = 1;
+        }
+        $result[$child->nodeName][] = xml_to_array($child);
+      }
+    }
+  }
+
+  return $result;
+}
+
+
+function dnl2array($domnodelist) {
+  $return = array();
+  for ($i = 0; $i < $domnodelist->length; ++$i) {
+    echo 'tel';
+    $return[] = $domnodelist->item($i);
+  }
+  return $return;
+}
+
+function complete_event_datetime($date, $event_time, $extra_days = null) {
+  $time_array = explode(" ", $event_time);
+  $dt_str = $date . $event_time;
+  $dt = DateTime::createFromFormat('d-m-YH:i', $dt_str);
+  // DEBUG: echo $key . ' | event time  |' . $event_time;
+  //var_dump($time_array); echo '<br>';
+  if (!is_null($extra_days)) {
+    //echo 'extra ' . $extra_days  . '<br>';
+    $dt->add(new DateInterval('P' . $extra_days . 'D'));
+  }
+  return $dt->format(DATE_ATOM);//
+  //return $dt_str;
+}
+
+/*
+ * takes evemd end time and seperates the extra days
+ * 08:00 (+2) becomes array('time' = "08:00", 'days' = 2)
+ */
+function complete_end_time($time) {
+  $time_array = explode(" ", $time);
+  $time_array['time'] = substr($time,0,5);
+  if (isset($time_array[1])) {
+    $time_array['days'] = substr($time_array[1],2,1);
+  }
+  else {
+    $time_array['days'] = 0;
+  }
+  return $time_array;
+}

@@ -1,0 +1,5 @@
+name = Norwegian Roster
+          description = Sync your roster with GCal
+          package = Yagosoft
+          version = 7.0
+          core = 7.x
