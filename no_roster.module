@@ -1,5 +1,7 @@
 <?php
-
+/*
+ * TODO:  * DD code as an array
+ */
 define("SITE_MAIL", "info@nlhcrew.com");
 define("SITE_DISPLAY_NAME", "NLHCrew.com");
 define("VIS_DEFAULT", 'default');
@@ -41,6 +43,7 @@ function no_roster_menu() {
  * Copyright 2009 MishaInTheCloud.com. All rights reserved.
  */
 function load_roster() {
+  $regs = array();
   $roster = array();
  // header("Content-Type: text/xml");
   // urls to call
@@ -83,7 +86,6 @@ function load_roster() {
   $viewstate = _regexExtract($data, $regexViewstate, $regs, 1);
   $eventval = _regexExtract($data, $regexEventVal, $regs, 1);
 
-
   /* * **********************************************
    * now issue a second call to the Login page;
    *   this time, it will be a POST; we'll send back
@@ -103,7 +105,7 @@ function load_roster() {
   curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
   curl_setopt($ch, CURLOPT_URL, $urlLogin);
   curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
-
+  //curl_setopt($ch, CURLOPT_COOKIEJAR, $cookies);
   $data = curl_exec($ch);
 
 
@@ -168,58 +170,19 @@ function load_roster() {
   curl_close($ch);
   // DEBUG  echo '<pre>';var_dump($roster); echo '</pre>';exit();
   $complete_roster = complete_roster($roster);
-  drupal_set_message(debug($complete_roster));
-  drupal_goto('<front>');
+  // DEBUG drupal_set_message(debug($complete_roster));
+  post_to_calendar($complete_roster);
+  //drupal_goto('<front>');
 }
 
 
 function post_to_calendar($roster) {
-/*
-  // Data to post:
-  $post_data = array(
-    "end" => array("dateTime" => "2014-03-20T10:00:00.000-07:00",),
-    "start" => array("dateTime" => "2014-03-20T10:00:00.000-06:00",),
-    "summary" => "Test event",
-    "creator" => array(
-    "displayName" => "NLHCREW.COM",
-    "email" => "info@nlhcrew.com",
-    ),
-    "description" => "Dit is maar een test",
-  );
-
-  $url = "https://www.googleapis.com/calendar/v3/calendars/joopsintjago%40gmail.com/events?key=" . $api_key;
-
-  // Setup cURL
-  $ch = curl_init($url);
-  curl_setopt_array($ch, array(
-    CURLOPT_POST => TRUE,
-    CURLOPT_RETURNTRANSFER => TRUE,
-    CURLOPT_HTTPHEADER => array(
-      'Authorization: ' . $oAuth_token,
-      'Content-Type: application/json',
-      'X-JavaScript-User-Agent: Google APIs Explorer',
-    ),
-    CURLOPT_POSTFIELDS => drupal_json_encode($post_data),
-  ));
-
-  // Send the request
-  $response = curl_exec($ch);
-
-  // Check for errors
-  if($response === FALSE){
-    die(curl_error($ch));
-  }
-
-  // Decode the response
-  $responseData = drupal_json_decode($response, TRUE);
-
-  // Print the date from the response
-  debug($responseData, 'response data');*/
-
   error_reporting(E_ALL);
   require_once 'google/src/Google_Client.php';
   require_once 'google/src/contrib/Google_CalendarService.php';
-  session_start();
+  if(session_id() == '') {
+    session_start();
+  }
 
   if ((isset($_SESSION)) && (!empty($_SESSION))) {
     echo "There are cookies<br>";
@@ -274,18 +237,8 @@ function post_to_calendar($roster) {
       $end-> setDateTime($day['Checkout']);
       $event-> setEnd($end);
       $event-> setVisibility(VIS_DEFAULT);
-
-     /* $event = new Google_Event();
-      $event->setSummary('Halloween');
-      $event->setLocation('The Neighbourhood');
-      $start = new Google_EventDateTime();
-      $start->setDateTime('2014-03-31T10:00:00.000-05:00');
-      $event->setStart($start);
-      $end = new Google_EventDateTime();
-      $end->setDateTime('2014-03-31T10:25:00.000-06:00');
-      $event->setEnd($end);*/
-
-      $createdEvent = $cal->events->insert('joopsintjago@gmail.com', $event);
+      echo "<pre>"; echo  print_r($event) ; echo "</pre>";
+     // $createdEvent = $cal->events->insert('joopsintjago@gmail.com', $event);
       echo "<br><font size=+1>Event created</font>";
     }
     echo "<hr><br><font size=+1>Already connected</font> (No need to login)";
@@ -297,7 +250,6 @@ function post_to_calendar($roster) {
 
   $url = 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'];
   echo "<br><br><font size=+2><a href='" . "$url" . "?logout>Logout</a></font>";
-
 }
 
 /*
@@ -307,24 +259,21 @@ function post_to_calendar($roster) {
 function complete_roster($roster){
   require_once('spyc/Spyc.php');
   $rostercodes = Spyc::YAMLLoad('/var/www/vhosts/yagoserver.com/httpdocs/dev7/drupal/sites/all/modules/no_roster/rostercodes.yaml');
- /* DEBUG  echo '<pre><a href="rostercodes.yaml">rostercodes.yaml</a> loaded into PHP:<br/>';
-  print_r($rostercodes);
-  echo '</pre>';*/
-
+  // DEBUG  echo '<pre>';  print_r($rostercodes); echo '</pre>';
   $today = '';
   foreach ($roster as $key => $day) {
-    //echo 'key: ' . $key . '  |  day: ' . $day . '<br>';
+    // DEBUG echo 'key: ' . $key . '  |  day: ' . $day . '<br>';
+
     //if Date field is empty, set date to today (last known date)
-    // FIXME: results in error if first date in unknown
+    // FIXME: results in error if first date is unknown
     $roster[$key]['Date'] = rtrim((strlen($day['Date']) < 6 ? $today : $day['Date']));
-    // DEBUG:    echo 'date rtrimmed and completed ' . $roster[$key]['Date'] . ' | ' . var_dump($roster[$key]['Date']) . '<br>';
     $today = $roster[$key]['Date'];  // $today is temp var
 
     // Change $roster[$key]['Date'] to DateTime RFC3339 format
     $dt = DateTime::createFromFormat('dmy', $today);
-    //DEBUG echo $dt->format(DATE_ATOM) . '<br>';
     if (!$dt) {
-      echo ' false dt ' . $today; exit();
+      drupal_set_message('RFC DateTimeError on key: ' . $key, 'error');
+      return false;
     }
     $roster[$key]['Date'] = $dt-> format('d-m-Y');
 
@@ -337,8 +286,6 @@ function complete_roster($roster){
     $roster[$key]['Checkin'] = (empty($day['Checkin']) ? $day['Start'] : $day['Checkin']);
     $roster[$key]['Checkout'] = (empty($day['Checkout']) ? $roster[$key]['event_end'] : $day['Checkout']);
 
-
-
     // Complete Checkin and Checkout times as RFC3339 data
     $roster[$key]['Checkin'] = complete_event_datetime($roster[$key]['Date'], $roster[$key]['Checkin']);
     $roster[$key]['Checkout'] = complete_event_datetime($roster[$key]['Date'], $roster[$key]['Checkout'], $roster[$key]['extra_days']);
@@ -346,20 +293,18 @@ function complete_roster($roster){
     foreach ($day as $label => $value) {
       // DEBUG: echo 'label: ' . $label . ' value : ' . $value . '<br>';
       // Fill in roster codes
-      //  DEBUG: echo 'label : ' . $label .  ' | value: ' . $value . '<br> ';
       if (isset($rostercodes[$value])) {
         $roster[$key][$label] = $rostercodes[$value];
       }
-
     }
-    // Compose the description:
+
+    // Compose the event_description:
     $roster[$key]['description'] =
     $roster[$key]['Activity'] . ' | ' . $roster[$key]['Dep'] . '-'  . $roster[$key]['Start'] . ' - ' . $roster[$key]['Dep'] . '-' . $roster[$key]['End'] . '<br>' .
     'Cat: ' . $roster[$key]['Cat'] . ' | DD: ' . $roster[$key]['DD'] . ' | LE: ' . $roster[$key]['LE'];
-
   }
-  //DEBUG:
-  echo '<pre> <p>end result</p>'; print_r($roster); echo '</pre>'; exit();
+
+  //DEBUG:  echo '<pre> <p>end result</p>'; print_r($roster); echo '</pre>'; exit();
   return $roster;
 }
 
