@@ -171,12 +171,8 @@ function load_roster() {
   // DEBUG  echo '<pre>';var_dump($roster); echo '</pre>';exit();
   $complete_roster = complete_roster($roster);
   // DEBUG drupal_set_message(debug($complete_roster));
-  post_to_calendar($complete_roster);
-  //drupal_goto('<front>');
-}
 
-
-function post_to_calendar($roster) {
+  // post to Google calendar
   error_reporting(E_ALL);
   require_once 'google/src/Google_Client.php';
   require_once 'google/src/contrib/Google_CalendarService.php';
@@ -195,10 +191,8 @@ function post_to_calendar($roster) {
   $client->setApplicationName("NLHCREW.com Roster");
   $client->setClientId('786455466975-dsplfoagg6usnngs876qshdtf7j6b67f.apps.googleusercontent.com');
   $client->setClientSecret('APNdZIR2Y7nMqy2SM93viZFu');
-  $client->setRedirectUri('http://dev7.yagoserver.com/no_roster/get_roster_page');
+  $client->setRedirectUri('http://dev7.yagoserver.com/no_roster/load_roster');
   //$client->setDeveloperKey('AIzaSyB4amN0V6XsmNgsg2-M7NBZf9Zp5b1LqJI');
-
-  $cal = new Google_CalendarService($client);
 
   if (isset($_GET['logout'])) {
     echo "<br><br><font size=+2>Logging out</font>";
@@ -220,9 +214,10 @@ function post_to_calendar($roster) {
 
   if ($client->getAccessToken()){
 
+    $cal = new Google_CalendarService($client);
     echo "<hr><font size=+1>I have access to your calendar</font>";
 
-    foreach ($roster as $day) {
+    foreach ($complete_roster as $day) {
       $event = new Google_Event();
       $event-> setSummary($day['Activity']); //"summary": string,
       $event-> setDescription($day['description']); //"description": string,
@@ -238,6 +233,7 @@ function post_to_calendar($roster) {
       $event-> setEnd($end);
       $event-> setVisibility(VIS_DEFAULT);
       echo "<pre>"; echo  print_r($event) ; echo "</pre>";
+
      // $createdEvent = $cal->events->insert('joopsintjago@gmail.com', $event);
       echo "<br><font size=+1>Event created</font>";
     }
