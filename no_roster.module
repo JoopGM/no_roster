@@ -104,8 +104,8 @@ function load_roster() {
   curl_setOpt($ch, CURLOPT_POST, TRUE);
   curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
   curl_setopt($ch, CURLOPT_URL, $urlLogin);
-  curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
-  //curl_setopt($ch, CURLOPT_COOKIEJAR, $cookies);
+  //curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
+  curl_setopt($ch, CURLOPT_COOKIEJAR, $cookies);
   $data = curl_exec($ch);
 
 
@@ -122,68 +122,58 @@ function load_roster() {
   curl_setopt($ch, CURLOPT_COOKIEFILE, $cookies);
 
   $data = curl_exec($ch);
+  curl_close($ch);
 
   // at this point the secured page may be parsed for values, or additional POSTS made to submit parameters
   // and retrieve data.  For this sample, we'll just echo the results.
+
   $dom = new DOMDocument;
- // echo $data;
+  // echo $data;
   if ($dom->loadHTML($data)) {
     $xpath = new DOMXPath($dom);
-    //$all_rows = $dom-> saveHTML(
-    $node_list =  $xpath-> query("//tr[@class='RosterOddRow' or @class='RosterEvenRow']");
-    if (!$node_list) {
-      echo 'node list empty or FALSE';
-    }
-    else {
-      if (!is_null($node_list)) {
-        foreach ($node_list as $element) {
-          $test_array = array();
-          $nodes = $element-> childNodes;
-          $kind = substr($nodes-> item(1)->nodeValue, 0, 3);
-          if ($kind == "Hot" || $kind == "Cre" || $kind == "Day") {
-           // echo 'kind = ' . $kind . '<br />';
-          }
-          else {
-           // $test_array['first'] = $nodes-> item(0)->nodeValue;
-            $test_array['Date'] = $nodes-> item(1)->nodeValue;
-            $test_array['Checkin'] = $nodes-> item(2)->nodeValue;
-            $test_array['Activity'] = $nodes-> item(3)->nodeValue;
-            $test_array['Start'] = $nodes-> item(4)->nodeValue;
-            $test_array['Dep'] = $nodes-> item(5)->nodeValue;
-            $test_array['Arr'] = $nodes-> item(6)->nodeValue;
-            $test_array['End'] = $nodes-> item(7)->nodeValue;
-            $test_array['Checkout'] = $nodes-> item(8)->nodeValue;
-            $test_array['AcType'] = $nodes-> item(9)->nodeValue;
-            $test_array['AcVersion'] = $nodes-> item(10)->nodeValue;
-            $test_array['DD'] = $nodes-> item(11)->nodeValue;
-            $test_array['Cat'] = $nodes-> item(12)->nodeValue;
-            $test_array['LE'] = $nodes-> item(13)->nodeValue;
-           // echo '<br /><br />';
-            //print_r($test_array);
-            $roster[] = $test_array;
-          }
-
+    $node_list = $xpath-> query("//tr[@class='RosterOddRow' or @class='RosterEvenRow']");
+    $days = array();
+    foreach ($node_list as $tr) {
+      $day = array();
+      //echo $dom->saveHtml($tr), PHP_EOL;
+      $sub_dom = new DOMDocument();
+      $sub_dom-> loadHTML($dom->saveHtml($tr));
+      $sub_xpath = new DOMXPath($sub_dom);
+      $result = $sub_xpath->query("//td[@class='RosterRowActivity']");
+      if ($result-> length) {  // we have a result
+        if ($result->item(0)->nodeValue <> '---') {
+          $day['checkin_date'] = $sub_xpath-> query("//td[@class = 'RosterRowCheckin']")->item(0)->nodeValue;
+          $day['activity'] = $result->item(0)->nodeValue;
+          $day['dep'] = $sub_xpath-> query("//td[@class = 'RosterRowDep']")->item(0)->nodeValue;
+          $day['arr'] = $sub_xpath-> query("//td[@class = 'RosterRowArr']")->item(0)->nodeValue;
+          $day['start'] = $sub_xpath-> query("//td[@class = 'RosterRowStart']")->item(0)->nodeValue;
+          $day['end'] = $sub_xpath-> query("//td[@class = 'RosterRowEnd']")->item(0)->nodeValue;
+          $day['checkout'] = $sub_xpath-> query("//td[@class = 'RosterRowCheckout']")->item(0)->nodeValue;
+          $day['duty_desig'] = $sub_xpath-> query("//td[@class = 'RosterRowDutyDesig']")->item(0)->nodeValue;
+          $day['cat'] = $sub_xpath-> query("//td[@class = 'RosterRowAsgCat']")->item(0)->nodeValue;
+          $days[] = $day;
         }
       }
     }
+    //debug($days, 'Raw days array as scraped');;
+    $complete_roster = complete_roster($days);
+    //debug($complete_roster);
+    post_to_calendar($complete_roster);
+    // drupal_goto('<front>')
   }
-  curl_close($ch);
-  // DEBUG  echo '<pre>';var_dump($roster); echo '</pre>';exit();
-  $complete_roster = complete_roster($roster);
-  // DEBUG drupal_set_message(debug($complete_roster));
-  post_to_calendar($complete_roster);
-  //drupal_goto('<front>');
+  else {
+    drupal_set_message(t('Dom document not loaded after scrape.', 'error'));
+  }
 }
 
-
 function post_to_calendar($roster) {
+  //debug($roster, 'post to calendar');
   error_reporting(E_ALL);
   require_once 'google/src/Google_Client.php';
   require_once 'google/src/contrib/Google_CalendarService.php';
   if(session_id() == '') {
     session_start();
   }
-
   if ((isset($_SESSION)) && (!empty($_SESSION))) {
     echo "There are cookies<br>";
     echo "<pre>";
@@ -219,33 +209,64 @@ function post_to_calendar($roster) {
   }
 
   if ($client->getAccessToken()){
-
     echo "<hr><font size=+1>I have access to your calendar</font>";
+    // Get all the events from NLH as from today, so that we can clear them
+    // in order to make new ones.
 
+   $all_events = $cal->events->listEvents('joopsintjago@gmail.com');
+    foreach ($all_events->getItems() as $this_event) {
+      //$creator = new Google_EventCreator();
+
+     // debug($this_event, $this_event->creator->email);
+    }
+
+
+   /* while(true) {
+      foreach ($events->getItems() as $event) {
+        echo $event->getSummary();
+      }
+      $pageToken = $events->getNextPageToken();
+      if ($pageToken) {
+        $optParams = array('pageToken' => $pageToken);
+        $events = $service->events->listEvents('primary', $optParams);
+      } else {
+        break;
+      }
+    }*/
+    $nlh = array('nlh' => 'nlh');
+    $test_prop = array('test' => 'test');
     foreach ($roster as $day) {
       $event = new Google_Event();
-      $event-> setSummary($day['Activity']); //"summary": string,
+      $event-> setSummary($day['activity']); //"summary": string,
       $event-> setDescription($day['description']); //"description": string,
-      $creator = new Google_EventCreator();
-      $creator->setDisplayName(SITE_DISPLAY_NAME);
-      $creator-> setEmail(SITE_MAIL);
-      $event-> setCreator($creator);
-      $start = new Google_EventDateTime();
-      $start-> setDateTime($day['Checkin']);
+       $source = new Google_EventSource();
+       $source-> setTitle('NLHCREW');
+       $source-> setUrl('http://www.nlhcrew.com');
+      $event->setSource($source);
+        $extended = new Google_EventExtendedProperties();
+        $extended->setPrivate($nlh);
+      $event-> setExtendedProperties($extended);
+        $prop = new Google_EventExtendedProperties();
+        $prop->setShared($test_prop);
+      $event-> setExtendedProperties($prop);
+        $start = new Google_EventDateTime();
+        $start-> setDateTime($day['checkin']);
       $event-> setStart($start);
-      $end = new Google_EventDateTime();
-      $end-> setDateTime($day['Checkout']);
+        $end = new Google_EventDateTime();
+        $end-> setDateTime($day['checkout']);
       $event-> setEnd($end);
       $event-> setVisibility(VIS_DEFAULT);
-      echo "<pre>"; echo  print_r($event) ; echo "</pre>";
-      $createdEvent = $cal->events->insert('joopsintjago@gmail.com', $event);
-      echo "<br><font size=+1>Event created</font>";
+      //echo "<pre>"; echo  print_r($event) ; echo "</pre>";
+      debug($event);
+     $createdEvent = $cal->events->insert('joopsintjago@gmail.com', $event);
+    //  echo "<br><font size=+1>Event created</font>";
     }
     echo "<hr><br><font size=+1>Already connected</font> (No need to login)";
   }
   else {
     $authUrl = $client->createAuthUrl();
-    print "<hr><br><font size=+2><a href='". $authUrl . "'>Connect Me!</a></font>";
+    //fixme: See if we can do this without clicking
+    print "<hr><br><font size=+2><a href='". $authUrl . "'>" . t("Click this link to authorize this website to access your calendar create your roster")   .  "</a></font>";
   }
 
   $url = 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'];
@@ -259,36 +280,39 @@ function post_to_calendar($roster) {
 function complete_roster($roster){
   require_once('spyc/Spyc.php');
   $rostercodes = Spyc::YAMLLoad('/var/www/vhosts/yagoserver.com/httpdocs/dev7/drupal/sites/all/modules/no_roster/rostercodes.yaml');
-  // DEBUG  echo '<pre>';  print_r($rostercodes); echo '</pre>';
+
+  // if first date in the roster is empty we will unset it
+  if (empty($roster[0]['checkin_date'])) {
+    unset($roster[0]);
+  }
   $today = '';
   foreach ($roster as $key => $day) {
-    // DEBUG echo 'key: ' . $key . '  |  day: ' . $day . '<br>';
+    // DEBUG  echo 'key: ' . $key . '  |  day: ' . $day . '<br>';
 
-    //if Date field is empty, set date to today (last known date)
     // FIXME: results in error if first date is unknown
-    $roster[$key]['Date'] = rtrim((strlen($day['Date']) < 6 ? $today : $day['Date']));
-    $today = $roster[$key]['Date'];  // $today is temp var
+    $roster[$key]['checkin_date'] = rtrim((strlen($day['checkin_date']) < 6 ? $today : $day['checkin_date']));
+    $today = $roster[$key]['checkin_date'];  // if an empty date comes in it will be set to this value which is the previous date
 
-    // Change $roster[$key]['Date'] to DateTime RFC3339 format
+    // Change $roster[$key]['date'] to DateTime RFC3339 format
     $dt = DateTime::createFromFormat('dmy', $today);
     if (!$dt) {
-      drupal_set_message('RFC DateTimeError on key: ' . $key, 'error');
+      drupal_set_message('Roster import failed due RFC DateTimeError on key: ' . $key, 'error');
       return false;
     }
-    $roster[$key]['Date'] = $dt-> format('d-m-Y');
+    $roster[$key]['checkin_date'] = $dt-> format('d-m-Y');
 
     // If event ends on next day(s)
-    $end_array = complete_end_time($day['End']);
+    $end_array = complete_end_time($day['end']);
     $roster[$key]['event_end'] = $end_array['time'];
     $roster[$key]['extra_days'] = $end_array['days'];
 
     // if Checkin /Checkout time not set, set it to start and End
-    $roster[$key]['Checkin'] = (empty($day['Checkin']) ? $day['Start'] : $day['Checkin']);
-    $roster[$key]['Checkout'] = (empty($day['Checkout']) ? $roster[$key]['event_end'] : $day['Checkout']);
+    $roster[$key]['checkin'] = (empty($day['checkin']) ? $day['start'] : $day['checkin']);
+    $roster[$key]['checkout'] = (empty($day['checkout']) ? $roster[$key]['event_end'] : $day['checkout']);
 
     // Complete Checkin and Checkout times as RFC3339 data
-    $roster[$key]['Checkin'] = complete_event_datetime($roster[$key]['Date'], $roster[$key]['Checkin']);
-    $roster[$key]['Checkout'] = complete_event_datetime($roster[$key]['Date'], $roster[$key]['Checkout'], $roster[$key]['extra_days']);
+    $roster[$key]['checkin'] = complete_event_datetime($roster[$key]['checkin_date'], $roster[$key]['checkin']);
+    $roster[$key]['checkout'] = complete_event_datetime($roster[$key]['checkin_date'], $roster[$key]['checkout'], $roster[$key]['extra_days']);
 
     foreach ($day as $label => $value) {
       // DEBUG: echo 'label: ' . $label . ' value : ' . $value . '<br>';
@@ -300,11 +324,12 @@ function complete_roster($roster){
 
     // Compose the description:
     $roster[$key]['description'] =
-    $roster[$key]['Activity'] . ' | ' . $roster[$key]['Dep'] . '-'  . $roster[$key]['Start'] . ' - ' . $roster[$key]['Dep'] . '-' . $roster[$key]['End'] . '<br>' .
-    'Cat: ' . $roster[$key]['Cat'] . ' | DD: ' . $roster[$key]['DD'] . ' | LE: ' . $roster[$key]['LE'];
+    $roster[$key]['activity'] . ' | ' . $roster[$key]['dep'] . '-'  . $roster[$key]['start'] . ' - ' . $roster[$key]['dep'] . '-' . $roster[$key]['end'] . '<br>' .
+    'Category: ' . $roster[$key]['cat'] . ' | Duty designator: ' . $roster[$key]['duty_desig'];
   }
 
-  //DEBUG:  echo '<pre> <p>end result</p>'; print_r($roster); echo '</pre>'; exit();
+
+  //debug($roster,'end complete roster');
   return $roster;
 }
 
@@ -402,4 +427,39 @@ function complete_end_time($time) {
     $time_array['days'] = 0;
   }
   return $time_array;
+}
+
+
+/**
+ * Will output in a similar form to print_r, but the nodes are xml so can be collapsed in browsers
+ * @param mixed $mixed
+ */
+function print_r_xml($mixed) {
+  // capture the output of print_r
+  $out = print_r($mixed, true);
+
+  // Replace the root item with a struct
+  // MATCH : '<start>element<newline> ('
+  $root_pattern = '/[ \t]*([a-z0-9 \t_]+)\n[ \t]*\(/i';
+  $root_replace_pattern = '<struct name="root" type="\\1">';
+  $out = preg_replace($root_pattern, $root_replace_pattern, $out, 1);
+
+  // Replace array and object items structs
+  // MATCH : '[element] => <newline> ('
+  $struct_pattern = '/[ \t]*\[([^\]]+)\][ \t]*\=\>[ \t]*([a-z0-9 \t_]+)\n[ \t]*\(/miU';
+  $struct_replace_pattern = '<struct name="\\1" type="\\2">';
+  $out = preg_replace($struct_pattern, $struct_replace_pattern, $out);
+  // replace ')' on its own on a new line (surrounded by whitespace is ok) with '</var>
+  $out = preg_replace('/^\s*\)\s*$/m', '</struct>', $out);
+
+  // Replace simple key=>values with vars
+  // MATCH : '[element] => value<newline>'
+  $var_pattern = '/[ \t]*\[([^\]]+)\][ \t]*\=\>[ \t]*([a-z0-9 \t_\S]+)/i';
+  $var_replace_pattern = '<var name="\\1">\\2</var>';
+  $out = preg_replace($var_pattern, $var_replace_pattern, $out);
+
+  $out =  trim($out);
+  $out='<?xml version="1.0"?><data>'.$out.'</data>';
+
+  return $out;
 }
