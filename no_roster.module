@@ -208,59 +208,66 @@ function post_to_calendar($roster) {
     $client->setAccessToken($_SESSION['token']);
   }
 
-  if ($client->getAccessToken()){
+  if ($client->getAccessToken()) {
     echo "<hr><font size=+1>I have access to your calendar</font>";
     // Get all the events from NLH as from today, so that we can clear them
     // in order to make new ones.
 
-   $all_events = $cal->events->listEvents('joopsintjago@gmail.com');
-    foreach ($all_events->getItems() as $this_event) {
-      //$creator = new Google_EventCreator();
+    $start_date = new DateTime('now');
+    $end_date = clone $start_date;
+    $end_date->modify('+60 day');
 
-     // debug($this_event, $this_event->creator->email);
+    $minCheck = date(DATE_ATOM, $start_date->getTimestamp());
+    $maxCheck = date(DATE_ATOM, $end_date-> getTimestamp());
+    $seek_array = array(
+      'timeMin' => $minCheck,
+      'timeMax' => $maxCheck,
+      'q' => 'NLHCREW',
+    );
+    $present_events = $cal->events->listEvents('joopsintjago@gmail.com', $seek_array);
+
+    foreach ($present_events->getItems() as $this_event) {
+      $result[] =
+       // $this_event->getStart()->getDateTime() . " | "
+       // . $this_event->getSummary() . " | "
+        $this_event->getSource()->title;
+      //debug($this_event);
     }
+    debug($result);
 
-
-   /* while(true) {
-      foreach ($events->getItems() as $event) {
-        echo $event->getSummary();
-      }
-      $pageToken = $events->getNextPageToken();
-      if ($pageToken) {
-        $optParams = array('pageToken' => $pageToken);
-        $events = $service->events->listEvents('primary', $optParams);
-      } else {
-        break;
-      }
-    }*/
+    //$all_events = $cal->events->listEvents('joopsintjago@gmail.com');
+    /*foreach ($all_events->getItems() as $this_event) {
+      $
+    }
+    */
     $nlh = array('nlh' => 'nlh');
     $test_prop = array('test' => 'test');
     foreach ($roster as $day) {
-      $event = new Google_Event();
-      $event-> setSummary($day['activity']); //"summary": string,
-      $event-> setDescription($day['description']); //"description": string,
-       $source = new Google_EventSource();
-       $source-> setTitle('NLHCREW');
-       $source-> setUrl('http://www.nlhcrew.com');
-      $event->setSource($source);
-        $extended = new Google_EventExtendedProperties();
-        $extended->setPrivate($nlh);
-      $event-> setExtendedProperties($extended);
-        $prop = new Google_EventExtendedProperties();
-        $prop->setShared($test_prop);
-      $event-> setExtendedProperties($prop);
-        $start = new Google_EventDateTime();
-        $start-> setDateTime($day['checkin']);
-      $event-> setStart($start);
-        $end = new Google_EventDateTime();
-        $end-> setDateTime($day['checkout']);
-      $event-> setEnd($end);
-      $event-> setVisibility(VIS_DEFAULT);
-      //echo "<pre>"; echo  print_r($event) ; echo "</pre>";
-      debug($event);
-     $createdEvent = $cal->events->insert('joopsintjago@gmail.com', $event);
-    //  echo "<br><font size=+1>Event created</font>";
-    }
+        $event = new Google_Event();
+        $event-> setSummary($day['activity']); //"summary": string,
+        $event-> setDescription($day['description']); //"description": string,
+          $source = new Google_EventSource();
+          $source-> setTitle('NLHCREW');
+          $source-> setUrl('http://www.nlhcrew.com');
+        $event->setSource($source);
+          $extended = new Google_EventExtendedProperties();
+          $extended->setPrivate($nlh);
+        $event-> setExtendedProperties($extended);
+          $prop = new Google_EventExtendedProperties();
+          $prop->setShared($test_prop);
+        $event-> setExtendedProperties($prop);
+          $start = new Google_EventDateTime();
+          $start-> setDateTime($day['checkin']);
+        $event-> setStart($start);
+          $end = new Google_EventDateTime();
+          $end-> setDateTime($day['checkout']);
+        $event-> setEnd($end);
+        $event-> setVisibility(VIS_DEFAULT);
+        //echo "<pre>"; echo  print_r($event) ; echo "</pre>";
+        //debug($event);
+        // $createdEvent = $cal->events->insert('joopsintjago@gmail.com', $event);
+        //  echo "<br><font size=+1>Event created</font>";
+      }
     echo "<hr><br><font size=+1>Already connected</font> (No need to login)";
   }
   else {
