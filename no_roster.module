@@ -169,8 +169,8 @@ function load_roster() {
 function post_to_calendar($roster) {
   //debug($roster, 'post to calendar');
   error_reporting(E_ALL);
-  require_once 'google/src/Google_Client.php';
-  require_once 'google/src/contrib/Google_CalendarService.php';
+  require_once 'google-api-php-client/src/Google/Client.php';
+  require_once 'google-api-php-client/src/Google/Service/Calendar.php';
   if(session_id() == '') {
     session_start();
   }
@@ -188,7 +188,7 @@ function post_to_calendar($roster) {
   $client->setRedirectUri('http://dev7.yagoserver.com/no_roster/load_roster');
   //$client->setDeveloperKey('AIzaSyB4amN0V6XsmNgsg2-M7NBZf9Zp5b1LqJI');
 
-  $cal = new Google_CalendarService($client);
+  $cal = new Google_Service_Calendar($client);
 
   if (isset($_GET['logout'])) {
     echo "<br><br><font size=+2>Logging out</font>";
@@ -243,23 +243,23 @@ function post_to_calendar($roster) {
     $nlh = array('nlh' => 'nlh');
     $test_prop = array('test' => 'test');
     foreach ($roster as $day) {
-        $event = new Google_Event();
+        $event = new Google_Service_Calendar_Event();
         $event-> setSummary($day['activity']); //"summary": string,
         $event-> setDescription($day['description']); //"description": string,
-          $source = new Google_EventSource();
+          $source = new Google_Service_Calendar_EventSource();
           $source-> setTitle('NLHCREW');
           $source-> setUrl('http://www.nlhcrew.com');
         $event->setSource($source);
-          $extended = new Google_EventExtendedProperties();
+          $extended = new Google_Service_Calendar_EventExtendedProperties();
           $extended->setPrivate($nlh);
         $event-> setExtendedProperties($extended);
-          $prop = new Google_EventExtendedProperties();
+          $prop = new Google_Service_Calendar_EventExtendedProperties();
           $prop->setShared($test_prop);
         $event-> setExtendedProperties($prop);
-          $start = new Google_EventDateTime();
+          $start = new Google_Service_Calendar_EventDateTime();
           $start-> setDateTime($day['checkin']);
         $event-> setStart($start);
-          $end = new Google_EventDateTime();
+          $end = new Google_Service_Calendar_EventDateTime();
           $end-> setDateTime($day['checkout']);
         $event-> setEnd($end);
         $event-> setVisibility(VIS_DEFAULT);
