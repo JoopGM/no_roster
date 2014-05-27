@@ -169,8 +169,8 @@ function load_roster() {
 function post_to_calendar($roster) {
   //debug($roster, 'post to calendar');
   error_reporting(E_ALL);
-  require_once 'google-api-php-client/src/Google/Client.php';
-  require_once 'google-api-php-client/src/Google/Service/Calendar.php';
+  //require_once 'google-api-php-client/src/Google/Client.php';
+ // require_once 'google-api-php-client/src/Google/Service/Calendar.php';
   if(session_id() == '') {
     session_start();
   }
@@ -213,6 +213,40 @@ function post_to_calendar($roster) {
     // Get all the events from NLH as from today, so that we can clear them
     // in order to make new ones.
 
+
+    //$test = $cal->calendars->get('primary');
+    //$nlh_cal = new Google_Service_Calendar_Calendar();
+    //$nlh_cal->setSummary('NLH Roster');
+    //$nlh_cal->setId('roster@nlhcrew.com');
+    //$nlh_cal->setDescription('Your Norwegian roster build by NLHCrew.com');
+    //$ins = $cal->calendars->insert($nlh_cal);
+
+    $all_cals = $cal->calendarList->listCalendarList();
+   // debug($all_cals);
+   // drupal_goto('<front>');
+   // return;
+     $all_cals = $cal->calendarList->listCalendarList();
+
+    $nlh_cal_id = null;
+    foreach ($all_cals as $xcal) {
+      if ($xcal['summary'] == 'NLH Roster') {
+        $nlh_cal_id = $xcal['id'];
+        drupal_set_message('roster id found: ' . $nlh_cal_id);
+
+      }
+    }
+    if (!$nlh_cal_id) {
+      echo 'calendar not found' . '<br>';
+      $calendar = new Google_Service_Calendar_Calendar();
+      $calendar->setSummary('NLH Roster');
+      //$calendar->setId('roster@nlhcrew.com');
+      $calendar->setDescription('Your Norwegian roster build by NLHCrew.com');
+      $nlh_cal = $cal->calendars->insert($calendar);
+      $nlh_cal_id = $nlh_cal->getId();
+      drupal_set_message(t('NLHCrew.com roster does not exist. Calendar created with id:  '. $nlh_cal_id));
+      echo 'new calendar. ID is :' . $nlh_cal_id;
+    }
+
     $start_date = new DateTime('now');
     $end_date = clone $start_date;
     $end_date->modify('+60 day');
@@ -222,52 +256,33 @@ function post_to_calendar($roster) {
     $seek_array = array(
       'timeMin' => $minCheck,
       'timeMax' => $maxCheck,
-      'q' => 'NLHCREW',
     );
-    $present_events = $cal->events->listEvents('joopsintjago@gmail.com', $seek_array);
 
+    $present_events = $cal->events->listEvents($nlh_cal_id, $seek_array);
+    // Delete present event before updating or creating new ones.
     foreach ($present_events->getItems() as $this_event) {
-      $result[] =
-       // $this_event->getStart()->getDateTime() . " | "
-       // . $this_event->getSummary() . " | "
-        $this_event->getSource()->title;
-      //debug($this_event);
+      $cal->events->delete($nlh_cal_id, $this_event->getId());
     }
-    debug($result);
 
-    //$all_events = $cal->events->listEvents('joopsintjago@gmail.com');
-    /*foreach ($all_events->getItems() as $this_event) {
-      $
-    }
-    */
-    $nlh = array('nlh' => 'nlh');
-    $test_prop = array('test' => 'test');
     foreach ($roster as $day) {
-        $event = new Google_Service_Calendar_Event();
-        $event-> setSummary($day['activity']); //"summary": string,
-        $event-> setDescription($day['description']); //"description": string,
-          $source = new Google_Service_Calendar_EventSource();
-          $source-> setTitle('NLHCREW');
-          $source-> setUrl('http://www.nlhcrew.com');
-        $event->setSource($source);
-          $extended = new Google_Service_Calendar_EventExtendedProperties();
-          $extended->setPrivate($nlh);
-        $event-> setExtendedProperties($extended);
-          $prop = new Google_Service_Calendar_EventExtendedProperties();
-          $prop->setShared($test_prop);
-        $event-> setExtendedProperties($prop);
-          $start = new Google_Service_Calendar_EventDateTime();
-          $start-> setDateTime($day['checkin']);
-        $event-> setStart($start);
-          $end = new Google_Service_Calendar_EventDateTime();
-          $end-> setDateTime($day['checkout']);
-        $event-> setEnd($end);
-        $event-> setVisibility(VIS_DEFAULT);
-        //echo "<pre>"; echo  print_r($event) ; echo "</pre>";
-        //debug($event);
-        // $createdEvent = $cal->events->insert('joopsintjago@gmail.com', $event);
-        //  echo "<br><font size=+1>Event created</font>";
-      }
+      $event = new Google_Service_Calendar_Event();
+      $event-> setSummary($day['activity']); //"summary": string,
+      $event-> setDescription($day['description']); //"description": string,
+        $source = new Google_Service_Calendar_EventSource();
+        $source-> setTitle('NLHCREW');
+        $source-> setUrl('http://www.nlhcrew.com');
+      $event->setSource($source);
+        $start = new Google_Service_Calendar_EventDateTime();
+        $start-> setDateTime($day['checkin']);
+      $event-> setStart($start);
+        $end = new Google_Service_Calendar_EventDateTime();
+        $end-> setDateTime($day['checkout']);
+      $event-> setEnd($end);
+      $event-> setVisibility(VIS_DEFAULT);
+      //echo "<pre>"; echo  print_r($event) ; echo "</pre>";
+      //debug($event);
+      $cal->events->insert($nlh_cal_id, $event);
+    }
     echo "<hr><br><font size=+1>Already connected</font> (No need to login)";
   }
   else {
