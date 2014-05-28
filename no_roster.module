@@ -167,14 +167,13 @@ function load_roster() {
 }
 
 function post_to_calendar($roster) {
-  //debug($roster, 'post to calendar');
   error_reporting(E_ALL);
-  //require_once 'google-api-php-client/src/Google/Client.php';
- // require_once 'google-api-php-client/src/Google/Service/Calendar.php';
   if(session_id() == '') {
     session_start();
   }
+
   if ((isset($_SESSION)) && (!empty($_SESSION))) {
+    // Remove:
     echo "There are cookies<br>";
     echo "<pre>";
     print_r($_SESSION);
@@ -188,7 +187,7 @@ function post_to_calendar($roster) {
   $client->setRedirectUri('http://dev7.yagoserver.com/no_roster/load_roster');
   //$client->setDeveloperKey('AIzaSyB4amN0V6XsmNgsg2-M7NBZf9Zp5b1LqJI');
 
-  $cal = new Google_Service_Calendar($client);
+  $service = new Google_Service_Calendar($client);
 
   if (isset($_GET['logout'])) {
     echo "<br><br><font size=+2>Logging out</font>";
@@ -213,57 +212,52 @@ function post_to_calendar($roster) {
     // Get all the events from NLH as from today, so that we can clear them
     // in order to make new ones.
 
-
-    //$test = $cal->calendars->get('primary');
-    //$nlh_cal = new Google_Service_Calendar_Calendar();
-    //$nlh_cal->setSummary('NLH Roster');
-    //$nlh_cal->setId('roster@nlhcrew.com');
-    //$nlh_cal->setDescription('Your Norwegian roster build by NLHCrew.com');
-    //$ins = $cal->calendars->insert($nlh_cal);
-
-    $all_cals = $cal->calendarList->listCalendarList();
-   // debug($all_cals);
-   // drupal_goto('<front>');
-   // return;
-     $all_cals = $cal->calendarList->listCalendarList();
+    $all_cals = $service->calendarList->listCalendarList();
+    //debug($all_cals);
 
     $nlh_cal_id = null;
-    foreach ($all_cals as $xcal) {
-      if ($xcal['summary'] == 'NLH Roster') {
-        $nlh_cal_id = $xcal['id'];
-        drupal_set_message('roster id found: ' . $nlh_cal_id);
+    foreach ($all_cals as $cal) {
+      if ($cal['summary'] == 'NLH Roster') {
+        // NLH Roster is found. We will delete all data before creating new.
+        $nlh_cal_id = $cal['id'];
+        drupal_set_message('roster id found: ' . $nlh_cal_id . '. Deleting roster.' );
 
+        // Set the criteria to select the events o delete
+        $start_date = new DateTime('now');
+        $end_date = clone $start_date;
+        $end_date->modify('+2 month');
+
+        $minCheck = date(DATE_ATOM, $start_date->getTimestamp());
+        $maxCheck = date(DATE_ATOM, $end_date-> getTimestamp());
+        $seek_array = array(
+          'timeMin' => $minCheck,
+          'timeMax' => $maxCheck,
+          'maxResults' => 500,
+        );
+        //debug($seek_array);
+
+        $present_events = $service->events->listEvents($nlh_cal_id, $seek_array);
+        debug($present_events);
+        foreach ($present_events->getItems() as $this_event) {
+          $service->events->delete($nlh_cal_id, $this_event->getId());
+        }
       }
     }
+
+    // There is no NLH calendar yet, so we will create one.
     if (!$nlh_cal_id) {
       echo 'calendar not found' . '<br>';
       $calendar = new Google_Service_Calendar_Calendar();
       $calendar->setSummary('NLH Roster');
       //$calendar->setId('roster@nlhcrew.com');
       $calendar->setDescription('Your Norwegian roster build by NLHCrew.com');
-      $nlh_cal = $cal->calendars->insert($calendar);
+      $nlh_cal = $service->calendars->insert($calendar);
       $nlh_cal_id = $nlh_cal->getId();
       drupal_set_message(t('NLHCrew.com roster does not exist. Calendar created with id:  '. $nlh_cal_id));
       echo 'new calendar. ID is :' . $nlh_cal_id;
     }
 
-    $start_date = new DateTime('now');
-    $end_date = clone $start_date;
-    $end_date->modify('+60 day');
-
-    $minCheck = date(DATE_ATOM, $start_date->getTimestamp());
-    $maxCheck = date(DATE_ATOM, $end_date-> getTimestamp());
-    $seek_array = array(
-      'timeMin' => $minCheck,
-      'timeMax' => $maxCheck,
-    );
-
-    $present_events = $cal->events->listEvents($nlh_cal_id, $seek_array);
-    // Delete present event before updating or creating new ones.
-    foreach ($present_events->getItems() as $this_event) {
-      $cal->events->delete($nlh_cal_id, $this_event->getId());
-    }
-
+    // Use the roster array to create the cal events
     foreach ($roster as $day) {
       $event = new Google_Service_Calendar_Event();
       $event-> setSummary($day['activity']); //"summary": string,
@@ -281,7 +275,7 @@ function post_to_calendar($roster) {
       $event-> setVisibility(VIS_DEFAULT);
       //echo "<pre>"; echo  print_r($event) ; echo "</pre>";
       //debug($event);
-      $cal->events->insert($nlh_cal_id, $event);
+     // $service->events->insert($nlh_cal_id, $event);
     }
     echo "<hr><br><font size=+1>Already connected</font> (No need to login)";
   }
@@ -310,7 +304,6 @@ function complete_roster($roster){
   $today = '';
   foreach ($roster as $key => $day) {
     // DEBUG  echo 'key: ' . $key . '  |  day: ' . $day . '<br>';
-
     // FIXME: results in error if first date is unknown
     $roster[$key]['checkin_date'] = rtrim((strlen($day['checkin_date']) < 6 ? $today : $day['checkin_date']));
     $today = $roster[$key]['checkin_date'];  // if an empty date comes in it will be set to this value which is the previous date
@@ -333,8 +326,8 @@ function complete_roster($roster){
     $roster[$key]['checkout'] = (empty($day['checkout']) ? $roster[$key]['event_end'] : $day['checkout']);
 
     // Complete Checkin and Checkout times as RFC3339 data
-    $roster[$key]['checkin'] = complete_event_datetime($roster[$key]['checkin_date'], $roster[$key]['checkin']);
-    $roster[$key]['checkout'] = complete_event_datetime($roster[$key]['checkin_date'], $roster[$key]['checkout'], $roster[$key]['extra_days']);
+    $roster[$key]['checkin'] = complete_event_datetime($roster[$key]['checkin_date'], $roster[$key]['checkin'], $roster[$key]['dep']);
+    $roster[$key]['checkout'] = complete_event_datetime($roster[$key]['checkin_date'], $roster[$key]['checkout'], $roster[$key]['arr'], $roster[$key]['extra_days']);
 
     foreach ($day as $label => $value) {
       // DEBUG: echo 'label: ' . $label . ' value : ' . $value . '<br>';
@@ -351,7 +344,7 @@ function complete_roster($roster){
   }
 
 
-  //debug($roster,'end complete roster');
+  //  debug($roster, 'end complete roster');
   return $roster;
 }
 
@@ -421,18 +414,17 @@ function dnl2array($domnodelist) {
   return $return;
 }
 
-function complete_event_datetime($date, $event_time, $extra_days = null) {
-  $time_array = explode(" ", $event_time);
+function complete_event_datetime($date, $event_time, $station, $extra_days = null) {
+  $timezone_string = _get_time_zone($station);
+  $date_timezone = new DateTimeZone($timezone_string);
   $dt_str = $date . $event_time;
-  $dt = DateTime::createFromFormat('d-m-YH:i', $dt_str);
+  $dt = DateTime::createFromFormat('d-m-YH:i', $dt_str, $date_timezone);
   // DEBUG: echo $key . ' | event time  |' . $event_time;
-  //var_dump($time_array); echo '<br>';
   if (!is_null($extra_days)) {
     //echo 'extra ' . $extra_days  . '<br>';
     $dt->add(new DateInterval('P' . $extra_days . 'D'));
   }
-  return $dt->format(DATE_ATOM);//
-  //return $dt_str;
+  return $dt->format(DATE_ATOM);
 }
 
 /*
@@ -484,4 +476,22 @@ function print_r_xml($mixed) {
   $out='<?xml version="1.0"?><data>'.$out.'</data>';
 
   return $out;
+}
+
+/**
+ * @function returns timezone string for given 3 letter station code.
+ * @param $station string 3-letter code of a station
+ * @return mixed timezone string
+ *
+ */
+function _get_time_zone($station) {
+  $time_zone = null;
+  require_once('spyc/Spyc.php');
+  $arr = Spyc::YAMLLoad(dirname(__FILE__) . '/timezones.yaml');
+  $time_zone = $arr[$station];
+  if (!$time_zone) {
+    // fixme: use placeholder
+    drupal_set_message(t('Time zone error for ') . $station, 'error');
+  }
+  return $time_zone;
 }
